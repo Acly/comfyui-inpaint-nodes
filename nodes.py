@@ -1,5 +1,4 @@
 from __future__ import annotations
-import functools
 from typing import Any
 import torch
 from torch import Tensor
@@ -37,33 +36,47 @@ def load_fooocus_patch(lora: dict, to_load: dict):
     return patch_dict
 
 
-def calculate_weight_patched(self, patches, weight, key):
-    is_fooocus_patch = False
+original_calculate_weight = ModelPatcher.calculate_weight
+injected_model_patcher_calculate_weight = False
+
+
+def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
+    remaining = []
 
     for p in patches:
         alpha, v, strength_model = p
-        if strength_model != 1.0:
-            weight *= strength_model
 
         is_fooocus_patch = isinstance(v, tuple) and len(v) == 2 and v[0] == "fooocus"
-        if is_fooocus_patch:
+        if not is_fooocus_patch:
+            remaining.append(p)
+            continue
+
+        if alpha != 0.0:
             v = v[1]
             w1 = cast_to_device(v[0], weight.device, torch.float32)
-            w_min = cast_to_device(v[1], weight.device, torch.float32)
-            w_max = cast_to_device(v[2], weight.device, torch.float32)
-            w1 = (w1 / 255.0) * (w_max - w_min) + w_min
-            if alpha != 0.0:
-                if w1.shape != weight.shape:
-                    print(
-                        f"[ApplyFooocusInpaint] Shape mismatch {key}, weight not merged ({w1.shape} != {weight.shape})"
-                    )
-                else:
-                    weight += alpha * cast_to_device(w1, weight.device, weight.dtype)
+            if w1.shape == weight.shape:
+                w_min = cast_to_device(v[1], weight.device, torch.float32)
+                w_max = cast_to_device(v[2], weight.device, torch.float32)
+                w1 = (w1 / 255.0) * (w_max - w_min) + w_min
+                weight += alpha * cast_to_device(w1, weight.device, weight.dtype)
+            else:
+                print(
+                    f"[ApplyFooocusInpaint] Shape mismatch {key}, weight not merged ({w1.shape} != {weight.shape})"
+                )
 
-    if is_fooocus_patch:
-        return weight
-    else:
-        return ModelPatcher.calculate_weight(self, patches, weight, key)
+    if len(remaining) > 0:
+        return original_calculate_weight(self, remaining, weight, key)
+    return weight
+
+
+def inject_patched_calculate_weight():
+    global injected_model_patcher_calculate_weight
+    if not injected_model_patcher_calculate_weight:
+        print(
+            "[comfyui-inpaint-nodes] Injecting patched comfy.model_patcher.ModelPatcher.calculate_weight"
+        )
+        ModelPatcher.calculate_weight = calculate_weight_patched
+        injected_model_patcher_calculate_weight = True
 
 
 class LoadFooocusInpaint:
@@ -143,10 +156,10 @@ class ApplyFooocusInpaint:
         m = model.clone()
         m.set_model_input_block_patch(input_block_patch)
         patched = m.add_patches(loaded_lora, strength)
-        m.calculate_weight = functools.partial(calculate_weight_patched, m)
 
         not_patched_count = sum(1 for x in loaded_lora if x not in patched)
         if not_patched_count > 0:
             print(f"[ApplyFooocusInpaint] Failed to patch {not_patched_count} keys")
 
+        inject_patched_calculate_weight()
         return (m,)
