@@ -113,10 +113,6 @@ class ApplyFooocusInpaint:
                 "model": ("MODEL",),
                 "patch": ("INPAINT_PATCH",),
                 "latent": ("LATENT",),
-                "strength": (
-                    "FLOAT",
-                    {"default": 1.0, "min": -20.0, "max": 20.0, "step": 0.01},
-                ),
             }
         }
 
@@ -129,7 +125,6 @@ class ApplyFooocusInpaint:
         model: ModelPatcher,
         patch: tuple[InpaintHead, dict[str, Tensor]],
         latent: dict[str, Any],
-        strength: float,
     ):
         base_model: BaseModel = model.model
         latent_pixels = base_model.process_latent_in(latent["samples"])
@@ -155,7 +150,7 @@ class ApplyFooocusInpaint:
 
         m = model.clone()
         m.set_model_input_block_patch(input_block_patch)
-        patched = m.add_patches(loaded_lora, strength)
+        patched = m.add_patches(loaded_lora, 1.0)
 
         not_patched_count = sum(1 for x in loaded_lora if x not in patched)
         if not_patched_count > 0:
