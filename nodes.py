@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
 from comfy.model_patcher import ModelPatcher
@@ -10,6 +11,8 @@ import comfy.utils
 import comfy.lora
 import folder_paths
 
+from .util import gaussian_blur, binary_erosion, make_odd
+
 
 class InpaintHead(torch.nn.Module):
     def __init__(self, *args, **kwargs):
@@ -17,8 +20,8 @@ class InpaintHead(torch.nn.Module):
         self.head = torch.nn.Parameter(torch.empty(size=(320, 5, 3, 3), device="cpu"))
 
     def __call__(self, x):
-        x = torch.nn.functional.pad(x, (1, 1, 1, 1), "replicate")
-        return torch.nn.functional.conv2d(input=x, weight=self.head)
+        x = F.pad(x, (1, 1, 1, 1), "replicate")
+        return F.conv2d(input=x, weight=self.head)
 
 
 def load_fooocus_patch(lora: dict, to_load: dict):
@@ -129,9 +132,7 @@ class ApplyFooocusInpaint:
         base_model: BaseModel = model.model
         latent_pixels = base_model.process_latent_in(latent["samples"])
         latent_mask = (
-            torch.nn.functional.max_pool2d(latent["noise_mask"], (8, 8))
-            .round()
-            .to(latent_pixels)
+            F.max_pool2d(latent["noise_mask"], (8, 8)).round().to(latent_pixels)
         )
 
         inpaint_head_model, inpaint_lora = patch
@@ -158,3 +159,37 @@ class ApplyFooocusInpaint:
 
         inject_patched_calculate_weight()
         return (m,)
+
+
+class FillInpaintArea:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "blur": ("INT", {"default": 255, "min": 3, "max": 8191, "step": 1}),
+                "falloff": ("INT", {"default": 11, "min": 0, "max": 8191, "step": 1}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    CATEGORY = "inpaint"
+    FUNCTION = "fill"
+
+    def fill(self, image: Tensor, mask: Tensor, blur: int, falloff: int):
+        blur = make_odd(blur)
+        falloff = min(make_odd(falloff), blur - 2)
+        image = image.permute(0, 3, 1, 2)  # (B, H, W, C) -> (B, C, H, W)
+
+        original = image.clone()
+        alpha = mask.floor().unsqueeze(1)
+        if falloff > 0:
+            erosion = binary_erosion(alpha, falloff)
+            alpha = alpha * gaussian_blur(erosion, falloff)
+        alpha = alpha.repeat(1, 3, 1, 1)
+        image = gaussian_blur(image, blur)
+        image = original + (image - original) * alpha
+
+        image = image.permute(0, 2, 3, 1)
+        return (image,)
