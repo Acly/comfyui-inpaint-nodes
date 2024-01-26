@@ -4,6 +4,54 @@ import torch.nn.functional as F
 from torch import Tensor
 
 
+def to_torch(image: Tensor, mask: Tensor | None = None):
+    if len(image.shape) == 3:
+        image = image.unsqueeze(0)
+    image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
+    if mask is not None:
+        if len(mask.shape) < 4:
+            mask = mask.reshape(1, 1, mask.shape[-2], mask.shape[-1])
+    if image.shape[2:] != mask.shape[2:]:
+        raise ValueError(
+            f"Image and mask must be the same size. {image.shape[2:]} != {mask.shape[2:]}"
+        )
+    return image, mask
+
+
+def to_comfy(image: Tensor):
+    return image.permute(0, 2, 3, 1)  # BCHW -> BHWC
+
+
+def resize_square(image: Tensor, mask: Tensor, size: int):
+    _, _, h, w = image.shape
+    pad_w, pad_h, prev_size = 0, 0, w
+    if w == size and h == size:
+        return image, mask, (pad_w, pad_h, prev_size)
+
+    if w < h:
+        pad_w = h - w
+        prev_size = h
+    elif h < w:
+        pad_h = w - h
+        prev_size = w
+    image = F.pad(image, (0, pad_w, 0, pad_h), mode="reflect")
+    mask = F.pad(mask, (0, pad_w, 0, pad_h), mode="reflect")
+
+    if image.shape[-1] != size:
+        image = F.interpolate(image, size=size, mode="nearest-exact")
+        mask = F.interpolate(mask, size=size, mode="nearest-exact")
+
+    return image, mask, (pad_w, pad_h, prev_size)
+
+
+def undo_resize_square(image: Tensor, original_size: tuple[int, int, int]):
+    _, _, h, w = image.shape
+    pad_w, pad_h, prev_size = original_size
+    if prev_size != w or prev_size != h:
+        image = F.interpolate(image, size=prev_size, mode="bilinear")
+    return image[:, :, 0 : prev_size - pad_h, 0 : prev_size - pad_w]
+
+
 def _gaussian_kernel(radius: int, sigma: float):
     x = torch.linspace(-radius, radius, steps=radius * 2 + 1)
     pdf = torch.exp(-0.5 * (x / sigma).pow(2))

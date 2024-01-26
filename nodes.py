@@ -1,17 +1,29 @@
 from __future__ import annotations
 from typing import Any
 import torch
+import torch.jit
 import torch.nn.functional as F
 from torch import Tensor
 
 from comfy.model_patcher import ModelPatcher
 from comfy.model_base import BaseModel
-from comfy.model_management import cast_to_device
+from comfy.model_management import cast_to_device, get_torch_device
+from comfy_extras.chainner_models.types import PyTorchModel
+import comfy_extras.chainner_models.model_loading
 import comfy.utils
 import comfy.lora
 import folder_paths
 
-from .util import gaussian_blur, binary_erosion, make_odd
+from . import mat
+from .util import (
+    gaussian_blur,
+    binary_erosion,
+    make_odd,
+    to_torch,
+    to_comfy,
+    resize_square,
+    undo_resize_square,
+)
 
 
 class InpaintHead(torch.nn.Module):
@@ -161,7 +173,7 @@ class ApplyFooocusInpaint:
         return (m,)
 
 
-class FillInpaintArea:
+class MaskedBlur:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -180,16 +192,84 @@ class FillInpaintArea:
     def fill(self, image: Tensor, mask: Tensor, blur: int, falloff: int):
         blur = make_odd(blur)
         falloff = min(make_odd(falloff), blur - 2)
-        image = image.permute(0, 3, 1, 2)  # (B, H, W, C) -> (B, C, H, W)
+        image, mask = to_torch(image, mask)
 
         original = image.clone()
-        alpha = mask.floor().unsqueeze(1)
+        alpha = mask.floor()
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
             alpha = alpha * gaussian_blur(erosion, falloff)
         alpha = alpha.repeat(1, 3, 1, 1)
+
         image = gaussian_blur(image, blur)
         image = original + (image - original) * alpha
+        return (to_comfy(image),)
 
-        image = image.permute(0, 2, 3, 1)
-        return (image,)
+
+class LoadInpaintModel:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model_name": (folder_paths.get_filename_list("inpaint"),),
+            }
+        }
+
+    RETURN_TYPES = ("INPAINT_MODEL",)
+    CATEGORY = "inpaint"
+    FUNCTION = "load"
+
+    def load(self, model_name: str):
+        model_file = folder_paths.get_full_path("inpaint", model_name)
+        if model_file.endswith(".pt"):
+            sd = torch.jit.load(model_file, map_location="cpu").state_dict()
+        elif model_file.endswith(".pth"):
+            sd = comfy.utils.load_torch_file(model_file, safe_load=True)
+
+        if "synthesis.first_stage.conv_first.conv.resample_filter" in sd:  # MAT
+            model = mat.load(sd)
+        else:
+            model = comfy_extras.chainner_models.model_loading.load_state_dict(sd)
+        model = model.eval()
+        return (model,)
+
+
+class InpaintWithModel:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "inpaint_model": ("INPAINT_MODEL",),
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    CATEGORY = "inpaint"
+    FUNCTION = "inpaint"
+
+    def inpaint(self, inpaint_model: PyTorchModel, image: Tensor, mask: Tensor):
+        if inpaint_model.model_arch == "MAT":
+            required_size = 512
+        elif inpaint_model.model_arch == "LaMa":
+            required_size = 256
+        else:
+            raise ValueError(f"Unknown model_arch {inpaint_model.model_arch}")
+        image, mask = to_torch(image, mask)
+        image_device = image.device
+
+        original_image, original_mask = image, mask
+        image, mask, original_size = resize_square(
+            image.clone(), mask.clone(), required_size
+        )
+        mask = mask.round()
+
+        device = get_torch_device()
+        inpaint_model.to(device)
+        image = inpaint_model(image.to(device), mask.to(device))
+        inpaint_model.cpu()
+
+        image = undo_resize_square(image.to(image_device), original_size)
+        image = original_image + (image - original_image) * original_mask
+        return (to_comfy(image),)
