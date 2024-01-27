@@ -8,17 +8,17 @@ Adds two nodes which allow using [Fooocus](https://github.com/lllyasviel/Fooocus
 
 Download models from [lllyasviel/fooocus_inpaint](https://huggingface.co/lllyasviel/fooocus_inpaint/tree/main) to `ComfyUI/models/inpaint`.
 
-![Inpaint workflow](workflows/inpaint.png)
+![Inpaint workflow](media/inpaint.png)
 
 Note: Implementation is somewhat hacky as it monkey-patches ComfyUI's `ModelPatcher` to support the custom Lora format which the model is using.
 
 ## Inpaint Conditioning
 
-The inpaint nodes can be used with ComfyUI's "VAE Encode (for Inpainting)" directly. However this does not allow using existing content in the masked area, and therefore does not work with denoise strength smaller than 1.0.
+Fooocus inpaint can be used with ComfyUI's _VAE Encode (for Inpainting)_ directly. However this does not allow using existing content in the masked area, denoise strength must be 1.0.
 
-Alternatively "InpaintModelConditioning" can be used to allow using inpaint models with existing content. The resulting latent can however _not_ be used to patch the model using "Apply Fooocus Inpaint". This repository provides a new node **"VAE Encode & Inpaint Conditioning"** which provides two outputs: `latent_inpaint` (connect this to "Apply Fooocus Inpaint") and `latent_samples` (connect this to KSampler).
+Alternatively _InpaintModelConditioning_ can be used to allow using inpaint models with existing content. The resulting latent can however _not_ be used to patch the model using _Apply Fooocus Inpaint_. This repository provides a new node **VAE Encode & Inpaint Conditioning** which provides two outputs: `latent_inpaint` (connect this to _Apply Fooocus Inpaint_) and `latent_samples` (connect this to _KSampler_).
 
-It's the same as using both "VAE Encode (for Inpainting)" and "InpaintModelConditioning", but less overhead because it avoids VAE-encoding the image twice.
+It's the same as using both _VAE Encode (for Inpainting)_ and _InpaintModelConditioning_, but less overhead because it avoids VAE-encoding the image twice.
 
 
 
@@ -28,10 +28,10 @@ Several nodes are available to fill the masked area prior to inpainting.
 
 ### Fill Masked
 
-This fills the masked area with a smooth transition at the border. It has 3 modes:
+This fills the masked area, with a smooth transition at the border. It has 3 modes:
 * `neutral`: fills with grey, good for adding entirely new content
 * `telea`: fills with colors from surrounding border (based on algorithm by Alexandru Telea)
-* `navier-stokes`: fills with colors from surrounding border (based on fluid dynamics discovered by Navier-Stokes)
+* `navier-stokes`: fills with colors from surrounding border (based on fluid dynamics described by Navier-Stokes)
 
 | Input | Neutral | Telea | Navier-Stokes |
 |-|-|-|-|
@@ -39,7 +39,7 @@ This fills the masked area with a smooth transition at the border. It has 3 mode
 
 ### Blur Masked
 
-This applies a blur on the masked area. The blur is less strong at the borders of the mask. Good for keeping the general colors the same, but generating structurally new content.
+This blurs the image into the masked area. The blur is less strong at the borders of the mask. Good for keeping the general colors the same, but generating structurally new content.
 
 | Input | Blur radius 17 | Blur radius 65 |
 |-|-|-|
@@ -47,7 +47,7 @@ This applies a blur on the masked area. The blur is less strong at the borders o
 
 ### Inpaint Models (LaMA, MAT)
 
-This runs a small/fast inpaint model on the masked area. Models can be loaded with **"Load Inpaint Model"** and are applied with the **"Inpaint (using Model)"** node. This works well for outpainting background or object removal.
+This runs a small, fast inpaint model on the masked area. Models can be loaded with **Load Inpaint Model** and are applied with the **Inpaint (using Model)** node. This works well for outpainting or object removal.
 
 The following inpaint models are supported, place them in `ComfyUI/models/inpaint`:
 - [LaMa](https://github.com/advimman/lama) | [Model download](https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt)
