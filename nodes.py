@@ -225,13 +225,14 @@ class MaskedFill:
     FUNCTION = "fill"
 
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
-        alpha = mask.round()
+        alpha = mask.expand(1, *mask.shape[-2:]).round()
         falloff = make_odd(falloff)
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
             alpha = alpha * gaussian_blur(erosion, falloff)
 
         if fill == "neutral":
+            image = image.detach().clone()
             m = (1.0 - alpha).squeeze(1)
             for i in range(3):
                 image[:, :, :, i] -= 0.5
