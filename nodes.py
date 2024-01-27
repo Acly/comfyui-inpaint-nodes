@@ -13,6 +13,7 @@ import comfy_extras.chainner_models.model_loading
 import comfy.utils
 import comfy.lora
 import folder_paths
+import nodes
 
 from . import mat
 from .util import (
@@ -141,11 +142,15 @@ class ApplyFooocusInpaint:
         patch: tuple[InpaintHead, dict[str, Tensor]],
         latent: dict[str, Any],
     ):
+        from torchvision.utils import save_image
+
+        save_image(latent["samples"], "C:\\Dev\\samples.png")
+
         base_model: BaseModel = model.model
         latent_pixels = base_model.process_latent_in(latent["samples"])
-        latent_mask = (
-            F.max_pool2d(latent["noise_mask"], (8, 8)).round().to(latent_pixels)
-        )
+        noise_mask = latent["noise_mask"].round()
+
+        latent_mask = F.max_pool2d(noise_mask, (8, 8)).round().to(latent_pixels)
 
         inpaint_head_model, inpaint_lora = patch
         feed = torch.cat([latent_mask, latent_pixels], dim=1)
@@ -171,6 +176,35 @@ class ApplyFooocusInpaint:
 
         inject_patched_calculate_weight()
         return (m,)
+
+
+class VAEEncodeInpaintConditioning:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "pixels": ("IMAGE",),
+                "mask": ("MASK",),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent_inpaint", "latent_samples")
+    FUNCTION = "encode"
+    CATEGORY = "inpaint"
+
+    def encode(self, positive, negative, vae, pixels, mask):
+        positive, negative, latent = nodes.InpaintModelConditioning().encode(
+            positive, negative, pixels, vae, mask
+        )
+        latent_inpaint = dict(
+            samples=positive[0][1]["concat_latent_image"],
+            noise_mask=latent["noise_mask"].round(),
+        )
+        return (positive, negative, latent_inpaint, latent)
 
 
 class MaskedBlur:
