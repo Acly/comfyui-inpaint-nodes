@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any
+import numpy as np
 import torch
 import torch.jit
 import torch.nn.functional as F
@@ -207,6 +208,56 @@ class VAEEncodeInpaintConditioning:
         return (positive, negative, latent_inpaint, latent)
 
 
+class MaskedFill:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "fill": (["neutral", "telea", "navier-stokes"],),
+                "falloff": ("INT", {"default": 11, "min": 0, "max": 8191, "step": 1}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    CATEGORY = "inpaint"
+    FUNCTION = "fill"
+
+    def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
+        alpha = mask.round()
+        falloff = make_odd(falloff)
+        if falloff > 0:
+            erosion = binary_erosion(alpha, falloff)
+            alpha = alpha * gaussian_blur(erosion, falloff)
+
+        if fill == "neutral":
+            m = (1.0 - alpha).squeeze(1)
+            for i in range(3):
+                image[:, :, :, i] -= 0.5
+                image[:, :, :, i] *= m
+                image[:, :, :, i] += 0.5
+        else:
+            import cv2
+
+            method = cv2.INPAINT_TELEA if fill == "telea" else cv2.INPAINT_NS
+            alpha_np = alpha.squeeze(0).cpu().numpy()
+            alpha_bc = alpha_np.reshape(*alpha_np.shape, 1)
+            for slice in image:
+                image_np = slice.cpu().numpy()
+                filled_np = cv2.inpaint(
+                    (255.0 * image_np).astype(np.uint8),
+                    (255.0 * alpha_np).astype(np.uint8),
+                    3,
+                    method,
+                )
+                filled_np = filled_np.astype(np.float32) / 255.0
+                filled_np = image_np * (1.0 - alpha_bc) + filled_np * alpha_bc
+                slice.copy_(torch.from_numpy(filled_np))
+
+        return (image,)
+
+
 class MaskedBlur:
     @classmethod
     def INPUT_TYPES(s):
@@ -229,7 +280,7 @@ class MaskedBlur:
         image, mask = to_torch(image, mask)
 
         original = image.clone()
-        alpha = mask.floor()
+        alpha = mask.round()
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
             alpha = alpha * gaussian_blur(erosion, falloff)
