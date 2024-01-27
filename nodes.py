@@ -143,10 +143,6 @@ class ApplyFooocusInpaint:
         patch: tuple[InpaintHead, dict[str, Tensor]],
         latent: dict[str, Any],
     ):
-        from torchvision.utils import save_image
-
-        save_image(latent["samples"], "C:\\Dev\\samples.png")
-
         base_model: BaseModel = model.model
         latent_pixels = base_model.process_latent_in(latent["samples"])
         noise_mask = latent["noise_mask"].round()
