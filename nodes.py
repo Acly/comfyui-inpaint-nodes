@@ -303,9 +303,11 @@ class LoadInpaintModel:
 
     def load(self, model_name: str):
         model_file = folder_paths.get_full_path("inpaint", model_name)
+        if model_file is None:
+            raise RuntimeError(f"Model file not found: {model_name}")
         if model_file.endswith(".pt"):
             sd = torch.jit.load(model_file, map_location="cpu").state_dict()
-        elif model_file.endswith(".pth"):
+        else:
             sd = comfy.utils.load_torch_file(model_file, safe_load=True)
 
         if "synthesis.first_stage.conv_first.conv.resample_filter" in sd:  # MAT
