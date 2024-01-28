@@ -28,7 +28,7 @@ adds a new node **VAE Encode & Inpaint Conditioning** which provides two outputs
 this to _Apply Fooocus Inpaint_) and `latent_samples` (connect this to _KSampler_).
 
 It's the same as using both _VAE Encode (for Inpainting)_ and _InpaintModelConditioning_, but less overhead
-because it avoids VAE-encoding the image twice. [Example workflow](workflows/inpaint-advanced.json)
+because it avoids VAE-encoding the image twice. [Example workflow](workflows/inpaint-refine.json)
 
 ## Inpaint Pre-processing
 
@@ -73,8 +73,9 @@ The following inpaint models are supported, place them in `ComfyUI/models/inpain
 Example workflows can be found in [workflows](workflows).
 
 * **[Simple](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-simple.json):** basic workflow, ignore previous content, 100% replacement
-* **[Advanced](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-advanced.json):** complex workflow, inpaint/outpaint/refine, 1-100% denoise strength
-* **[Promptless](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-advanced-promptless.json):** same as advanced but without text prompt, requires [IP-Adapter](https://github.com/cubiq/ComfyUI_IPAdapter_plus)
+* **[Refine](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-refine.json):** advanced workflow, refine existing content, 1-100% denoise strength
+* **[Pre-process](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-preprocess.json):** complex workflow for experimenting with pre-processors
+* **[Promptless](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-promptless.json):** same as above but without text prompt, requires [IP-Adapter](https://github.com/cubiq/ComfyUI_IPAdapter_plus)
 
 
 ## Installation
