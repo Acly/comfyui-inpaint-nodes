@@ -221,7 +221,7 @@ class MaskedFill:
     FUNCTION = "fill"
 
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
-        alpha = mask.expand(1, *mask.shape[-2:]).round()
+        alpha = mask.expand(1, *mask.shape[-2:]).floor()
         falloff = make_odd(falloff)
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
@@ -277,7 +277,7 @@ class MaskedBlur:
         image, mask = to_torch(image, mask)
 
         original = image.clone()
-        alpha = mask.round()
+        alpha = mask.floor()
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
             alpha = alpha * gaussian_blur(erosion, falloff)
