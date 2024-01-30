@@ -82,4 +82,6 @@ def binary_erosion(mask: Tensor, radius: int):
 
 
 def make_odd(x):
-    return x if x % 2 == 1 else x + 1
+    if x > 0 and x % 2 == 0:
+        return x + 1
+    return x
