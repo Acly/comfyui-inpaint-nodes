@@ -74,6 +74,7 @@ Example workflows can be found in [workflows](workflows).
 
 * **[Simple](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-simple.json):** basic workflow, ignore previous content, 100% replacement
 * **[Refine](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-refine.json):** advanced workflow, refine existing content, 1-100% denoise strength
+* **[Outpaint](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/outpaint.json):** workflow for outpainting with pre-processing
 * **[Pre-process](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-preprocess.json):** complex workflow for experimenting with pre-processors
 * **[Promptless](https://raw.githubusercontent.com/Acly/comfyui-inpaint-nodes/main/workflows/inpaint-promptless.json):** same as above but without text prompt, requires [IP-Adapter](https://github.com/cubiq/ComfyUI_IPAdapter_plus)
 

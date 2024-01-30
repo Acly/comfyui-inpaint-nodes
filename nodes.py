@@ -212,7 +212,7 @@ class MaskedFill:
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
                 "fill": (["neutral", "telea", "navier-stokes"],),
-                "falloff": ("INT", {"default": 11, "min": 0, "max": 8191, "step": 1}),
+                "falloff": ("INT", {"default": 0, "min": 0, "max": 8191, "step": 1}),
             }
         }
 
@@ -263,7 +263,7 @@ class MaskedBlur:
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
                 "blur": ("INT", {"default": 255, "min": 3, "max": 8191, "step": 1}),
-                "falloff": ("INT", {"default": 11, "min": 0, "max": 8191, "step": 1}),
+                "falloff": ("INT", {"default": 0, "min": 0, "max": 8191, "step": 1}),
             }
         }
 
