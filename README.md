@@ -62,7 +62,7 @@ and are applied with the **Inpaint (using Model)** node. This works well for out
 
 The following inpaint models are supported, place them in `ComfyUI/models/inpaint`:
 - [LaMa](https://github.com/advimman/lama) | [Model download](https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt)
-- [MAT](https://github.com/fenglinglwb/MAT) | [Model download](https://github.com/Sanster/models/releases/download/add_mat/Places_512_FullData_G.pth)
+- [MAT](https://github.com/fenglinglwb/MAT) | [Model download](https://github.com/Sanster/models/releases/download/add_mat/Places_512_FullData_G.pth) | [Model download (fp16 safetensors)](https://huggingface.co/Acly/MAT/resolve/main/MAT_Places512_G_fp16.safetensors)
 
 | Input | LaMa | MAT |
 |-|-|-|
