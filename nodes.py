@@ -344,10 +344,8 @@ class InpaintWithModel:
         image_device = image.device
 
         original_image, original_mask = image, mask
-        image, mask, original_size = resize_square(
-            image.clone(), mask.clone(), required_size
-        )
-        mask = mask.round()
+        image, mask, original_size = resize_square(image, mask, required_size)
+        mask = mask.floor()
 
         device = get_torch_device()
         inpaint_model.to(device)
@@ -355,5 +353,5 @@ class InpaintWithModel:
         inpaint_model.cpu()
 
         image = undo_resize_square(image.to(image_device), original_size)
-        image = original_image + (image - original_image) * original_mask
+        image = original_image + (image - original_image) * original_mask.floor()
         return (to_comfy(image),)
