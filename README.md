@@ -20,9 +20,9 @@ the custom Lora format which the model is using.
 ## Inpaint Conditioning
 
 Fooocus inpaint can be used with ComfyUI's _VAE Encode (for Inpainting)_ directly. However this does
-not allow using existing content in the masked area, denoise strength must be 1.0.
+not allow existing content in the masked area, denoise strength must be 1.0.
 
-_InpaintModelConditioning_ can be used to allow using inpaint models with existing content. The resulting
+_InpaintModelConditioning_ can be used to combine inpaint models with existing content. The resulting
 latent can however _not_ be used directly to patch the model using _Apply Fooocus Inpaint_. This repository
 adds a new node **VAE Encode & Inpaint Conditioning** which provides two outputs: `latent_inpaint` (connect
 this to _Apply Fooocus Inpaint_) and `latent_samples` (connect this to _KSampler_).
