@@ -5,7 +5,9 @@ import torch
 import torch.jit
 import torch.nn.functional as F
 from torch import Tensor
+from tqdm import trange
 
+from comfy.utils import ProgressBar
 from comfy.model_patcher import ModelPatcher
 from comfy.model_base import BaseModel
 from comfy.model_management import cast_to_device, get_torch_device
@@ -341,19 +343,31 @@ class InpaintWithModel:
             required_size = 256
         else:
             raise ValueError(f"Unknown model_arch {inpaint_model.model_arch}")
-        image, mask = to_torch(image, mask)
-        image_device = image.device
+        
+        batch_size = image.shape[0]
+        if mask.shape[0] != batch_size:
+            mask = mask[0].unsqueeze(0).repeat(batch_size, 1, 1)
+        
+        batch_image = []
+        pbar = ProgressBar(batch_size)
+        for i in trange(batch_size):
+            work_image, work_mask = to_torch(image[i].unsqueeze(0), mask[i].unsqueeze(0))
+            image_device = work_image.device
 
-        original_image, original_mask = image, mask
-        image, mask, original_size = resize_square(image, mask, required_size)
-        mask = mask.floor()
+            original_image, original_mask = work_image, work_mask
+            work_image, work_mask, original_size = resize_square(work_image, work_mask, required_size)
+            work_mask = work_mask.floor()
 
-        device = get_torch_device()
-        inpaint_model.to(device)
-        torch.manual_seed(seed)
-        image = inpaint_model(image.to(device), mask.to(device))
-        inpaint_model.cpu()
+            device = get_torch_device()
+            inpaint_model.to(device)
+            torch.manual_seed(seed)
+            work_image = inpaint_model(work_image.to(device), work_mask.to(device))
+            inpaint_model.cpu()
 
-        image = undo_resize_square(image.to(image_device), original_size)
-        image = original_image + (image - original_image) * original_mask.floor()
-        return (to_comfy(image),)
+            work_image = undo_resize_square(work_image.to(image_device), original_size)
+            work_image = original_image + (work_image - original_image) * original_mask.floor()
+            
+            batch_image.append(to_comfy(work_image))
+            pbar.update(1)
+        
+        return (torch.cat(batch_image, dim=0),)
