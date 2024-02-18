@@ -326,6 +326,7 @@ class InpaintWithModel:
                 "inpaint_model": ("INPAINT_MODEL",),
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
 
@@ -333,7 +334,7 @@ class InpaintWithModel:
     CATEGORY = "inpaint"
     FUNCTION = "inpaint"
 
-    def inpaint(self, inpaint_model: PyTorchModel, image: Tensor, mask: Tensor):
+    def inpaint(self, inpaint_model: PyTorchModel, image: Tensor, mask: Tensor, seed: int):
         if inpaint_model.model_arch == "MAT":
             required_size = 512
         elif inpaint_model.model_arch == "LaMa":
@@ -349,6 +350,7 @@ class InpaintWithModel:
 
         device = get_torch_device()
         inpaint_model.to(device)
+        torch.manual_seed(seed)
         image = inpaint_model(image.to(device), mask.to(device))
         inpaint_model.cpu()
 
