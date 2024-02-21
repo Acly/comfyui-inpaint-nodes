@@ -331,7 +331,7 @@ class InpaintWithModel:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
             "optional": {
-                "upscale_model": ("UPSCALE_MODEL",),
+                "optional_upscale_model": ("UPSCALE_MODEL",),
             }
         }
 
@@ -339,7 +339,7 @@ class InpaintWithModel:
     CATEGORY = "inpaint"
     FUNCTION = "inpaint"
 
-    def inpaint(self, inpaint_model: PyTorchModel, image: Tensor, mask: Tensor, seed: int, upscale_model=None):
+    def inpaint(self, inpaint_model: PyTorchModel, image: Tensor, mask: Tensor, seed: int, optional_upscale_model=None):
         if inpaint_model.model_arch == "MAT":
             required_size = 512
         elif inpaint_model.model_arch == "LaMa":
@@ -347,7 +347,7 @@ class InpaintWithModel:
         else:
             raise ValueError(f"Unknown model_arch {inpaint_model.model_arch}")
         
-        if upscale_model != None:
+        if optional_upscale_model != None:
             from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
             upscaler = ImageUpscaleWithModel
         
@@ -371,8 +371,8 @@ class InpaintWithModel:
             work_image = inpaint_model(work_image.to(device), work_mask.to(device))
             inpaint_model.cpu()
             
-            if upscale_model != None:
-                work_image = upscaler.upscale(upscaler, upscale_model, work_image.movedim(1,-1))[0].movedim(-1,1)
+            if optional_upscale_model != None:
+                work_image = upscaler.upscale(upscaler, optional_upscale_model, work_image.movedim(1,-1))[0].movedim(-1,1)
             
             work_image = undo_resize_square(work_image.to(image_device), original_size)
             work_image = original_image + (work_image - original_image) * original_mask.floor()
