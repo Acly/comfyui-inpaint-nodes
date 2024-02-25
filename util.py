@@ -9,8 +9,10 @@ def to_torch(image: Tensor, mask: Tensor | None = None):
         image = image.unsqueeze(0)
     image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
     if mask is not None:
-        if len(mask.shape) < 4:
-            mask = mask.reshape(1, 1, mask.shape[-2], mask.shape[-1])
+        if len(mask.shape) == 3:  # BHW -> B1HW
+            mask = mask.unsqueeze(1)
+        elif len(mask.shape) == 2:  # HW -> B1HW
+            mask = mask.unsqueeze(0).unsqueeze(0)
     if image.shape[2:] != mask.shape[2:]:
         raise ValueError(
             f"Image and mask must be the same size. {image.shape[2:]} != {mask.shape[2:]}"
