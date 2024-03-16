@@ -12,7 +12,7 @@ from comfy.model_patcher import ModelPatcher
 from comfy.model_base import BaseModel
 from comfy.model_management import cast_to_device, get_torch_device
 import spandrel
-from spandrel import nodes_upscale_model, ModelLoader
+from spandrel import ModelLoader
 import comfy.utils
 import comfy.lora
 import folder_paths
@@ -215,7 +215,52 @@ class VAEEncodeInpaintConditioning:
         encoded = nodes.InpaintModelConditioning().encode(positive, negative, pixels, vae, mask)
         return encoded
 
+class MaskedFill:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "fill": (["neutral", "telea", "navier-stokes"],),
+                "falloff": ("INT", {"default": 0, "min": 0, "max": 8191, "step": 1}),
+            }
+        }
 
+    RETURN_TYPES = ("IMAGE",)
+    CATEGORY = "inpaint"
+    FUNCTION = "fill"
+
+    def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
+        alpha = mask.expand(1, *mask.shape[-2:]).floor()
+        falloff = make_odd(falloff)
+
+        if falloff > 0:
+            erosion = binary_erosion(alpha, falloff)
+            alpha = alpha * gaussian_blur(erosion, falloff)
+
+        if fill == "neutral":
+            image = image.detach().clone()
+            m = (1.0 - alpha).squeeze(1)
+            for i in range(3):
+                image[:, :, :, i] -= 0.5
+                image[:, :, :, i] *= m
+                image[:, :, :, i] += 0.5
+        else:
+            import cv2
+            method = cv2.INPAINT_TELEA if fill == "telea" else cv2.INPAINT_NS
+
+            alpha_np = alpha.squeeze(0).cpu().numpy()
+            alpha_bc = alpha_np.reshape(*alpha_np.shape, 1)
+
+            for slice in image:
+                image_np = slice.cpu().numpy()
+                filled_np = cv2.inpaint((255.0 * image_np).astype(np.uint8), (255.0 * alpha_np).astype(np.uint8), 3, method)
+                filled_np = filled_np.astype(np.float32) / 255.0
+                filled_np = image_np * (1.0 - alpha_bc) + filled_np * alpha_bc
+                slice.copy_(torch.from_numpy(filled_np))
+
+        return (image,)
 
 class MaskedBlur:
     @classmethod
@@ -295,9 +340,6 @@ class InpaintWithModel:
                 "mask": ("MASK",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
-            "optional": {
-                "optional_upscale_model": ("UPSCALE_MODEL",),
-            }
         }
     RETURN_TYPES = ("IMAGE",)
     CATEGORY = "inpaint"
@@ -309,10 +351,6 @@ class InpaintWithModel:
         loader = ModelLoader()
         inpaint_model = loader.load_from_file(inpaint_model_path)
 
-        # Upscaling setup (if necessary)
-        if optional_upscale_model_path is not None:
-            upscaler_model = loader.load_from_file(optional_upscale_model_path)
-            upscaler = nodes_upscale_model  # Assuming you have 'nodes_upscale_model' defined elsewhere
 
 
         batch_size = image.shape[0]
@@ -334,8 +372,6 @@ class InpaintWithModel:
             work_image = inpaint_model(work_image.to(device), work_mask.to(device))
             inpaint_model.cpu()
 
-            if upscaler_model is not None:
-                work_image = upscaler.upscale(upscaler, upscaler_model, work_image.movedim(1, -1))[0].movedim(-1, 1)
             work_image = undo_resize_square(work_image.to(image_device), original_size)
             work_image = original_image + (work_image - original_image) * original_mask.floor()
             batch_image.append(to_comfy(work_image))
