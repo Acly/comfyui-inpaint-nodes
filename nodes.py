@@ -348,14 +348,6 @@ class InpaintWithModel:
     CATEGORY = "inpaint"
     FUNCTION = "inpaint"
 
-    def inpaint(self, inpaint_model_path: str, image: Tensor, mask: Tensor, seed: int, optional_upscale_model_path=None):
-
-        # Load inpainting model directly
-        loader = ModelLoader()
-        inpaint_model = loader.load_from_file(inpaint_model_path)
-
-
-
     def inpaint(
         self,
         inpaint_model: PyTorchModel,
@@ -364,6 +356,7 @@ class InpaintWithModel:
         seed: int,
         optional_upscale_model=None,
     ):
+        # Adjusting for MAT and LaMa model requirements - these models run on CPU only.
         if inpaint_model.model_arch == "MAT":
             required_size = 512
         elif inpaint_model.model_arch == "LaMa":
@@ -371,55 +364,40 @@ class InpaintWithModel:
         else:
             raise ValueError(f"Unknown model_arch {inpaint_model.model_arch}")
 
-        if optional_upscale_model != None:
-            from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
+        # No device switching needed; ensure everything operates on CPU.
+        inpaint_model.cpu()
 
-            upscaler = ImageUpscaleWithModel
+        # Load and prepare the optional upscale model, if provided, ensuring it also operates on CPU.
+        if optional_upscale_model is not None:
+            upscaler = ModelLoader().load_from_file(optional_upscale_model).cpu().eval()
 
-        image, mask = to_torch(image, mask)
+        # Prepare image and mask tensors, ensuring they are on the CPU.
+        image, mask = to_torch(image, mask).cpu(), to_torch(mask).cpu()
+
         batch_size = image.shape[0]
         if mask.shape[0] != batch_size:
-            mask = mask[0].unsqueeze(0).repeat(batch_size, 1, 1)
-
             mask = mask[0].unsqueeze(0).repeat(batch_size, 1, 1, 1)
 
-        image_device = image.device
-        device = get_torch_device()
-        inpaint_model.to(device)
         batch_image = []
-        pbar = ProgressBar(batch_size)
-        for i in range(batch_size):
-            work_image, work_mask = to_torch(image[i].unsqueeze(0), mask[i].unsqueeze(0))
-            image_device = work_image.device
-            original_image, original_mask = work_image, work_mask
-            work_image, work_mask, original_size = resize_square(work_image, work_mask, required_size)
 
-        for i in trange(batch_size):
+        for i in range(batch_size):
             work_image, work_mask = image[i].unsqueeze(0), mask[i].unsqueeze(0)
-            work_image, work_mask, original_size = resize_square(
-                work_image, work_mask, required_size
-            )
+            work_image, work_mask, original_size = resize_square(work_image, work_mask, required_size)
             work_mask = work_mask.floor()
 
             torch.manual_seed(seed)
-            work_image = inpaint_model(work_image.to(device), work_mask.to(device))
-            inpaint_model.cpu()
+            work_image = inpaint_model(work_image, work_mask)
 
-
-            if optional_upscale_model != None:
+            if optional_upscale_model is not None:
                 work_image = work_image.movedim(1, -1)
-                work_image = upscaler.upscale(
-                    upscaler, optional_upscale_model, work_image
-                )
-                work_image = work_image[0].movedim(-1, 1)
+                with torch.no_grad():
+                    work_image = upscaler(work_image)
+                work_image = work_image.movedim(-1, 1)
 
-            work_image.to(image_device)
-            work_image = undo_resize_square(work_image.to(image_device), original_size)
+            work_image = undo_resize_square(work_image, original_size)
             work_image = image[i] + (work_image - image[i]) * mask[i].floor()
 
             batch_image.append(work_image)
-            pbar.update(1)
 
-        inpaint_model.cpu()
         result = torch.cat(batch_image, dim=0)
         return (to_comfy(result),)
