@@ -37,7 +37,7 @@ class InpaintHead(torch.nn.Module):
 
     def __call__(self, x):
         x = F.pad(x, (1, 1, 1, 1), "replicate")
-        return F.conv2d(input=x, weight=self.head)
+        return F.conv2d(x, weight=self.head)
 
 
 def load_fooocus_patch(lora: dict, to_load: dict):
@@ -397,3 +397,31 @@ class InpaintWithModel:
         inpaint_model.cpu()
         result = torch.cat(batch_image, dim=0)
         return (to_comfy(result),)
+
+
+class DenoiseToCompositingMask:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+                "offset": (
+                    "FLOAT",
+                    {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01},
+                ),
+                "threshold": (
+                    "FLOAT",
+                    {"default": 0.2, "min": 0.01, "max": 1.0, "step": 0.01},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("MASK",)
+    CATEGORY = "inpaint"
+    FUNCTION = "convert"
+
+    def convert(self, mask: Tensor, offset: float, threshold: float):
+        assert 0.0 <= offset < threshold <= 1.0, "Threshold must be higher than offset"
+        mask = (mask - offset) * (1 / (threshold - offset))
+        mask = mask.clamp(0, 1)
+        return (mask,)
