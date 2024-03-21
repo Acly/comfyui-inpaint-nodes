@@ -3,6 +3,7 @@
 Nodes for better inpainting with ComfyUI: Fooocus inpaint model for SDXL, LaMa, MAT,
 and various other tools for pre-filling inpaint & outpaint areas.
 
+
 ## Fooocus Inpaint
 
 Adds two nodes which allow using [Fooocus](https://github.com/lllyasviel/Fooocus) inpaint model.
@@ -17,6 +18,7 @@ Download models from [lllyasviel/fooocus_inpaint](https://huggingface.co/lllyasv
 Note: Implementation is somewhat hacky as it monkey-patches ComfyUI's `ModelPatcher` to support
 the custom Lora format which the model is using.
 
+
 ## Inpaint Conditioning
 
 Fooocus inpaint can be used with ComfyUI's _VAE Encode (for Inpainting)_ directly. However this does
@@ -29,6 +31,7 @@ this to _Apply Fooocus Inpaint_) and `latent_samples` (connect this to _KSampler
 
 It's the same as using both _VAE Encode (for Inpainting)_ and _InpaintModelConditioning_, but less overhead
 because it avoids VAE-encoding the image twice. [Example workflow](workflows/inpaint-refine.json)
+
 
 ## Inpaint Pre-processing
 
@@ -67,6 +70,19 @@ The following inpaint models are supported, place them in `ComfyUI/models/inpain
 | Input | LaMa | MAT |
 |-|-|-|
 | ![input](media/preprocess-input.png) | ![lama](media/preprocess-lama.png) | ![mat](media/preprocess-mat.png) |
+
+
+## Inpaint Post-processing
+
+### Denoise to Compositing Mask
+
+Takes a _mask_, an _offset_ (default 0.1) and a _threshold_ (default 0.2).
+Maps mask values in the range of \[_offset_ → _threshold_\] to \[0 → 1\].
+Values below offset are clamped to 0, values above threshold to 1.
+
+This is particularly useful in combination with ComfyUI's "Differential Diffusion" node, which allows to use a mask as per-pixel denoise strength.
+Using the same mask for compositing (alpha blending) defeats the purpose, but no blending at all degrades quality in regions with zero or very low strength. This node creates a mask suitable for blending from the denoise-mask.
+
 
 ## Example Workflows
 
