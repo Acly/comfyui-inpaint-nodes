@@ -1,6 +1,7 @@
 from __future__ import annotations
 import torch
 import torch.nn.functional as F
+import numpy as np
 from torch import Tensor
 
 
@@ -24,6 +25,21 @@ def to_comfy(image: Tensor):
     return image.permute(0, 2, 3, 1)  # BCHW -> BHWC
 
 
+# torch pad does not support padding greater than image size with "reflect" mode
+def pad_reflect_once(x: Tensor, original_padding: tuple[int, int, int, int]):
+    _, _, h, w = x.shape
+    padding = np.array(original_padding)
+    size = np.array([w, w, h, h])
+
+    initial_padding = np.minimum(padding, size - 1)
+    additional_padding = padding - initial_padding
+
+    x = F.pad(x, tuple(initial_padding), mode="reflect")
+    if np.any(additional_padding > 0):
+        x = F.pad(x, tuple(additional_padding), mode="constant")
+    return x
+
+
 def resize_square(image: Tensor, mask: Tensor, size: int):
     _, _, h, w = image.shape
     pad_w, pad_h, prev_size = 0, 0, w
@@ -36,8 +52,8 @@ def resize_square(image: Tensor, mask: Tensor, size: int):
     elif h < w:
         pad_h = w - h
         prev_size = w
-    image = F.pad(image, (0, pad_w, 0, pad_h), mode="reflect")
-    mask = F.pad(mask, (0, pad_w, 0, pad_h), mode="reflect")
+    image = pad_reflect_once(image, (0, pad_w, 0, pad_h))
+    mask = pad_reflect_once(mask, (0, pad_w, 0, pad_h))
 
     if image.shape[-1] != size:
         image = F.interpolate(image, size=size, mode="nearest-exact")
