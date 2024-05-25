@@ -1,0 +1,17 @@
+[project]
+name = "comfyui-inpaint-nodes"
+description = "Nodes for better inpainting with ComfyUI. Adds various ways to pre-process inpaint areas. Supports the Fooocus inpaint model, a small and flexible patch which can be applied to any SDXL checkpoint and will improve consistency when generating masked areas."
+version = "1.0.0"
+license = "LICENSE"
+
+[project.urls]
+Repository = "https://github.com/Acly/comfyui-inpaint-nodes"
+
+[tool.black]
+line-length = 100
+preview = true
+
+[tool.comfy]
+PublisherId = "acly"
+DisplayName = "comfyui-inpaint-nodes"
+Icon = ""

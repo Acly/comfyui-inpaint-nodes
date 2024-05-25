@@ -382,9 +382,7 @@ class InpaintWithModel:
 
             if optional_upscale_model != None:
                 work_image = work_image.movedim(1, -1)
-                work_image = upscaler.upscale(
-                    upscaler, optional_upscale_model, work_image
-                )
+                work_image = upscaler.upscale(upscaler, optional_upscale_model, work_image)
                 work_image = work_image[0].movedim(-1, 1)
 
             work_image.to(image_device)

@@ -2,3 +2,4 @@
 .env
 .dev
 __pycache__
+node.tar.gz
