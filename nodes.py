@@ -5,7 +5,6 @@ import torch
 import torch.jit
 import torch.nn.functional as F
 from spandrel import ModelLoader, MaskedImageModelDescriptor
-from spandrel.architectures.LaMa import LaMaArch
 
 from torch import Tensor
 from tqdm import trange
@@ -350,7 +349,7 @@ class InpaintWithModel:
     ):
         if isinstance(inpaint_model, mat.MAT):
             required_size = 512
-        elif isinstance(inpaint_model.architecture, LaMaArch):
+        elif inpaint_model.architecture.id == "LaMa":
             required_size = 256
         else:
             raise ValueError(f"Unknown model_arch {type(inpaint_model)}")
