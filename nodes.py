@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.jit
 import torch.nn.functional as F
-from spandrel import ModelLoader, MaskedImageModelDescriptor
 
 from torch import Tensor
 from tqdm import trange
@@ -304,6 +303,8 @@ class LoadInpaintModel:
     FUNCTION = "load"
 
     def load(self, model_name: str):
+        from spandrel import ModelLoader
+
         model_file = folder_paths.get_full_path("inpaint", model_name)
         if model_file is None:
             raise RuntimeError(f"Model file not found: {model_name}")
@@ -341,7 +342,7 @@ class InpaintWithModel:
 
     def inpaint(
         self,
-        inpaint_model: MaskedImageModelDescriptor | mat.MAT,
+        inpaint_model: mat.MAT | Any,
         image: Tensor,
         mask: Tensor,
         seed: int,
