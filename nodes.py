@@ -63,7 +63,10 @@ def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
     remaining = []
 
     for p in patches:
-        alpha, v, strength_model = p
+        alpha = p[0]
+        v = p[1]
+        strength_model = p[2]
+        # alpha, v, strength_model = p
 
         is_fooocus_patch = isinstance(v, tuple) and len(v) == 2 and v[0] == "fooocus"
         if not is_fooocus_patch:
@@ -158,7 +161,11 @@ class ApplyFooocusInpaint:
 
         def input_block_patch(h, transformer_options):
             if transformer_options["block"][1] == 0:
-                h = h + inpaint_head_feature.to(h)
+                hh = inpaint_head_feature.to(h)
+                if hh.shape[0] > 1:
+                    batch_size = int(h.shape[0]/hh.shape[0])
+                    hh = hh.repeat(batch_size, 1, 1, 1)
+                h = h + hh
             return h
 
         lora_keys = comfy.lora.model_lora_keys_unet(model.model, {})
