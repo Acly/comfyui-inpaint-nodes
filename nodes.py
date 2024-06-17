@@ -223,6 +223,15 @@ class MaskedFill:
     FUNCTION = "fill"
 
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
+        assert image.shape[0] == mask.shape[0], "Masks and images must have the same batch size"
+        batch_size = image.shape[0]
+        result = []
+        for i in range(batch_size):
+            result += self._fill_single(image[i].unsqueeze(0), mask[i], fill, falloff)[0]
+
+        return (torch.stack(result),)
+
+    def _fill_single(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
         image = image.detach().clone()
         alpha = mask.expand(1, *mask.shape[-2:]).floor()
         falloff = make_odd(falloff)
