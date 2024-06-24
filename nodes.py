@@ -23,6 +23,7 @@ from .util import (
     binary_erosion,
     binary_dilation,
     make_odd,
+    mask_floor,
     mask_unsqueeze,
     to_torch,
     to_comfy,
@@ -227,7 +228,9 @@ class MaskedFill:
 
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
         image = image.detach().clone()
-        alpha = mask.expand(1, *mask.shape[-2:]).floor()
+        alpha = mask_unsqueeze(mask_floor(mask))
+        assert alpha.shape[0] == image.shape[0], "Image and mask batch size does not match"
+
         falloff = make_odd(falloff)
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
@@ -243,9 +246,9 @@ class MaskedFill:
             import cv2
 
             method = cv2.INPAINT_TELEA if fill == "telea" else cv2.INPAINT_NS
-            alpha_np = alpha.squeeze(0).cpu().numpy()
-            alpha_bc = alpha_np.reshape(*alpha_np.shape, 1)
-            for slice in image:
+            for slice, alpha_slice in zip(image, alpha):
+                alpha_np = alpha_slice.cpu().numpy()
+                alpha_bc = alpha_np.reshape(*alpha_np.shape, 1)
                 image_np = slice.cpu().numpy()
                 filled_np = cv2.inpaint(
                     (255.0 * image_np).astype(np.uint8),
@@ -282,11 +285,11 @@ class MaskedBlur:
         image, mask = to_torch(image, mask)
 
         original = image.clone()
-        alpha = mask.floor()
+        alpha = mask_floor(mask)
         if falloff > 0:
             erosion = binary_erosion(alpha, falloff)
             alpha = alpha * gaussian_blur(erosion, falloff)
-        alpha = alpha.repeat(1, 3, 1, 1)
+        alpha = alpha.expand(-1, 3, -1, -1)
 
         image = gaussian_blur(image, blur)
         image = original + (image - original) * alpha

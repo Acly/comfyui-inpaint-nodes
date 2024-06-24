@@ -31,6 +31,10 @@ def to_comfy(image: Tensor):
     return image.permute(0, 2, 3, 1)  # BCHW -> BHWC
 
 
+def mask_floor(mask: Tensor, threshold: float = 0.99):
+    return (mask >= threshold).to(mask.dtype)
+
+
 # torch pad does not support padding greater than image size with "reflect" mode
 def pad_reflect_once(x: Tensor, original_padding: tuple[int, int, int, int]):
     _, _, h, w = x.shape
