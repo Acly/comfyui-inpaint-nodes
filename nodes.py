@@ -21,7 +21,9 @@ from . import mat
 from .util import (
     gaussian_blur,
     binary_erosion,
+    binary_dilation,
     make_odd,
+    mask_unsqueeze,
     to_torch,
     to_comfy,
     resize_square,
@@ -426,3 +428,27 @@ class DenoiseToCompositingMask:
         mask = (mask - offset) * (1 / (threshold - offset))
         mask = mask.clamp(0, 1)
         return (mask,)
+
+
+class ExpandMask:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+                "grow": ("INT", {"default": 16, "min": 0, "max": 8096, "step": 1}),
+                "blur": ("INT", {"default": 7, "min": 0, "max": 8096, "step": 1}),
+            }
+        }
+
+    RETURN_TYPES = ("MASK",)
+    CATEGORY = "inpaint"
+    FUNCTION = "expand"
+
+    def expand(self, mask: Tensor, grow: int, blur: int):
+        mask = mask_unsqueeze(mask)
+        if grow > 0:
+            mask = binary_dilation(mask, grow)
+        if blur > 0:
+            mask = gaussian_blur(mask, make_odd(blur))
+        return (mask.squeeze(1),)

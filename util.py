@@ -2,7 +2,16 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 import numpy as np
+import kornia.filters
 from torch import Tensor
+
+
+def mask_unsqueeze(mask: Tensor):
+    if len(mask.shape) == 3:  # BHW -> B1HW
+        mask = mask.unsqueeze(1)
+    elif len(mask.shape) == 2:  # HW -> B1HW
+        mask = mask.unsqueeze(0).unsqueeze(0)
+    return mask
 
 
 def to_torch(image: Tensor, mask: Tensor | None = None):
@@ -10,10 +19,7 @@ def to_torch(image: Tensor, mask: Tensor | None = None):
         image = image.unsqueeze(0)
     image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
     if mask is not None:
-        if len(mask.shape) == 3:  # BHW -> B1HW
-            mask = mask.unsqueeze(1)
-        elif len(mask.shape) == 2:  # HW -> B1HW
-            mask = mask.unsqueeze(0).unsqueeze(0)
+        mask = mask_unsqueeze(mask)
     if image.shape[2:] != mask.shape[2:]:
         raise ValueError(
             f"Image and mask must be the same size. {image.shape[2:]} != {mask.shape[2:]}"
@@ -70,25 +76,11 @@ def undo_resize_square(image: Tensor, original_size: tuple[int, int, int]):
     return image[:, :, 0 : prev_size - pad_h, 0 : prev_size - pad_w]
 
 
-def _gaussian_kernel(radius: int, sigma: float):
-    x = torch.linspace(-radius, radius, steps=radius * 2 + 1)
-    pdf = torch.exp(-0.5 * (x / sigma).pow(2))
-    return pdf / pdf.sum()
-
-
 def gaussian_blur(image: Tensor, radius: int, sigma: float = 0):
     c = image.shape[-3]
     if sigma <= 0:
         sigma = 0.3 * (radius - 1) + 0.8
-
-    kernel = _gaussian_kernel(radius, sigma).to(image.device)
-    kernel_x = kernel[..., None, :].repeat(c, 1, 1).unsqueeze(1)
-    kernel_y = kernel[..., None].repeat(c, 1, 1).unsqueeze(1)
-
-    image = F.pad(image, (radius, radius, radius, radius), mode="reflect")
-    image = F.conv2d(image, kernel_x, groups=c)
-    image = F.conv2d(image, kernel_y, groups=c)
-    return image
+    return kornia.filters.gaussian_blur2d(image, (radius, radius), (sigma, sigma))
 
 
 def binary_erosion(mask: Tensor, radius: int):
@@ -96,6 +88,14 @@ def binary_erosion(mask: Tensor, radius: int):
     mask = F.pad(mask, (radius, radius, radius, radius), mode="constant", value=1)
     mask = F.conv2d(mask, kernel, groups=1)
     mask = (mask == kernel.numel()).to(mask.dtype)
+    return mask
+
+
+def binary_dilation(mask: Tensor, radius: int):
+    kernel = torch.ones(1, 1, radius * 2 + 1, radius * 2 + 1, device=mask.device)
+    mask = F.pad(mask, (radius, radius, radius, radius), mode="constant", value=0)
+    mask = F.conv2d(mask, kernel, groups=1)
+    mask = (mask > 0).to(mask.dtype)
     return mask
 
 
