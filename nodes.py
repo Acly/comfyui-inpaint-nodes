@@ -247,7 +247,7 @@ class MaskedFill:
 
             method = cv2.INPAINT_TELEA if fill == "telea" else cv2.INPAINT_NS
             for slice, alpha_slice in zip(image, alpha):
-                alpha_np = alpha_slice.cpu().numpy()
+                alpha_np = alpha_slice.squeeze().cpu().numpy()
                 alpha_bc = alpha_np.reshape(*alpha_np.shape, 1)
                 image_np = slice.cpu().numpy()
                 filled_np = cv2.inpaint(
