@@ -383,7 +383,7 @@ class InpaintWithModel:
             work_image, work_mask, original_size = resize_square(
                 work_image, work_mask, required_size
             )
-            work_mask = work_mask.floor()
+            work_mask = mask_floor(work_mask)
 
             torch.manual_seed(seed)
             work_image = inpaint_model(work_image.to(device), work_mask.to(device))
@@ -395,7 +395,7 @@ class InpaintWithModel:
 
             work_image.to(image_device)
             work_image = undo_resize_square(work_image.to(image_device), original_size)
-            work_image = image[i] + (work_image - image[i]) * mask[i].floor()
+            work_image = image[i] + (work_image - image[i]) * mask_floor(mask[i])
 
             batch_image.append(work_image)
             pbar.update(1)
