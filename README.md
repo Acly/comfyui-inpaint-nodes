@@ -38,6 +38,10 @@ because it avoids VAE-encoding the image twice. [Example workflow](workflows/inp
 Several nodes are available to fill the masked area prior to inpainting. They avoid seams as long as the
 input mask is large enough.
 
+### Expand Mask
+
+Expands (grow) the mask area by a certain number of pixels, and blurs (feather) the mask for a smoother transition at the edges.
+
 ### Fill Masked
 
 This fills the masked area, with a smooth transition at the border. It has 3 modes:
