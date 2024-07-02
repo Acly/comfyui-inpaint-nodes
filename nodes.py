@@ -162,6 +162,7 @@ class ApplyFooocusInpaint:
         feed = torch.cat([latent_mask, latent_pixels], dim=1)
         inpaint_head_model.to(device=feed.device, dtype=feed.dtype)
         self._inpaint_head_feature = inpaint_head_model(feed)
+        self._inpaint_block = None
 
         lora_keys = comfy.lora.model_lora_keys_unet(model.model, {})
         lora_keys.update({x: x for x in base_model.state_dict().keys()})
