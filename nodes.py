@@ -66,8 +66,14 @@ def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
     remaining = []
 
     for p in patches:
+        if not isinstance(p, (tuple, list)) or len(p) < 2:
+            # Skip invalid patches
+            print(f"[ApplyFooocusInpaint] Skipping invalid patch: {p}")
+            continue
+
         alpha = p[0]
         v = p[1]
+        strength_model = p[2] if len(p) > 2 else None
 
         is_fooocus_patch = isinstance(v, tuple) and len(v) == 2 and v[0] == "fooocus"
         if not is_fooocus_patch:
@@ -89,6 +95,7 @@ def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
 
     if len(remaining) > 0:
         return original_calculate_weight(self, remaining, weight, key)
+        
     return weight
 
 
