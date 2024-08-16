@@ -96,9 +96,8 @@ def binary_erosion(mask: Tensor, radius: int):
 
 
 def binary_dilation(mask: Tensor, radius: int):
-    kernel = torch.ones(1, 1, radius * 2 + 1, radius * 2 + 1, device=mask.device)
-    mask = F.pad(mask, (radius, radius, radius, radius), mode="constant", value=0)
-    mask = F.conv2d(mask, kernel, groups=1)
+    kernel = torch.ones(1, radius * 2 + 1, device=mask.device)
+    mask = kornia.filters.filter2d_separable(mask, kernel, kernel, border_type="constant")
     mask = (mask > 0).to(mask.dtype)
     return mask
 
