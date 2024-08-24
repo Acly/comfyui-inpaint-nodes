@@ -58,11 +58,16 @@ def load_fooocus_patch(lora: dict, to_load: dict):
     return patch_dict
 
 
-original_calculate_weight = ModelPatcher.calculate_weight
+if not hasattr(comfy.lora, "calculate_weight") and hasattr(ModelPatcher, "calculate_weight"):
+    too_old_msg = "comfyui-inpaint-nodes requires a newer version of ComfyUI (v0.1.1 or later), please update!"
+    raise RuntimeError(too_old_msg)
+
+
+original_calculate_weight = comfy.lora.calculate_weight
 injected_model_patcher_calculate_weight = False
 
 
-def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
+def calculate_weight_patched(patches, weight, key, intermediate_dtype=torch.float32):
     remaining = []
 
     for p in patches:
@@ -88,7 +93,7 @@ def calculate_weight_patched(self: ModelPatcher, patches, weight, key):
                 )
 
     if len(remaining) > 0:
-        return original_calculate_weight(self, remaining, weight, key)
+        return original_calculate_weight(remaining, weight, key, intermediate_dtype)
     return weight
 
 
@@ -98,7 +103,7 @@ def inject_patched_calculate_weight():
         print(
             "[comfyui-inpaint-nodes] Injecting patched comfy.model_patcher.ModelPatcher.calculate_weight"
         )
-        ModelPatcher.calculate_weight = calculate_weight_patched
+        comfy.lora.calculate_weight = calculate_weight_patched
         injected_model_patcher_calculate_weight = True
 
 
