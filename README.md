@@ -7,16 +7,17 @@ and various other tools for pre-filling inpaint & outpaint areas.
 ## Fooocus Inpaint
 
 Adds two nodes which allow using [Fooocus](https://github.com/lllyasviel/Fooocus) inpaint model.
-It's a small and flexible patch which can be applied to _any **SDXL** checkpoint_ and will transform
-it into an inpaint model. This model can then be used like other inpaint models, and provides the
-same benefits. [Read more](https://github.com/lllyasviel/Fooocus/discussions/414)
+It's a small and flexible patch which can be applied to your _**SDXL** checkpoints_ and
+will transform them into an inpaint model. This model can then be used like other inpaint
+models to seamlessly fill and expand areas in an image.
 
-Download models from [lllyasviel/fooocus_inpaint](https://huggingface.co/lllyasviel/fooocus_inpaint/tree/main) to `ComfyUI/models/inpaint`.
+Download models from [lllyasviel/fooocus_inpaint](https://huggingface.co/lllyasviel/fooocus_inpaint/tree/main) and place them into `ComfyUI/models/inpaint`.
 
 ![Inpaint workflow](media/inpaint.png)
 
-Note: Implementation is somewhat hacky as it monkey-patches ComfyUI's `ModelPatcher` to support
-the custom Lora format which the model is using.
+> [!NOTE]
+> 
+> Make sure to use the regular version of a checkpoint to create an inpaint model - distilled merges (Turbo, Lightning, Hyper) do not work.
 
 
 ## Inpaint Conditioning
