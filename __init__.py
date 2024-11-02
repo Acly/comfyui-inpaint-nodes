@@ -14,6 +14,7 @@ def _add_folder_path(folder_name: str, extensions: list):
     else:
         e = f"Failed to register models/inpaint folder. Found existing value: {extensions}"
         raise Exception(e)
+    folder_paths.folder_names_and_paths[folder_name] = (folders, extensions)
 
 
 _add_folder_path("inpaint", [".pt", ".pth", ".safetensors", ".patch"])
