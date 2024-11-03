@@ -124,7 +124,7 @@ class LoadFooocusInpaint:
     def load(self, head: str, patch: str):
         head_file = folder_paths.get_full_path("inpaint", head)
         inpaint_head_model = InpaintHead()
-        sd = torch.load(head_file, map_location="cpu")
+        sd = torch.load(head_file, map_location="cpu", weights_only=True)
         inpaint_head_model.load_state_dict(sd)
 
         patch_file = folder_paths.get_full_path("inpaint", patch)
