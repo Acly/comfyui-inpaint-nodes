@@ -30,7 +30,7 @@ class ModulatedConv2d(nn.Module):
         out_channels,  # Number of output channels.
         kernel_size,  # Width and height of the convolution kernel.
         style_dim,  # dimension of the style code
-        demodulate=True,  # perfrom demodulation
+        demodulate=True,  # perform demodulation
         up=1,  # Integer upsampling factor.
         down=1,  # Integer downsampling factor.
         resample_filter=[
