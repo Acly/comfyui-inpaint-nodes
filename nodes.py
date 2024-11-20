@@ -215,7 +215,7 @@ class VAEEncodeInpaintConditioning:
     def encode(self, positive, negative, vae, pixels, mask):
         try:
             positive, negative, latent = nodes.InpaintModelConditioning().encode(
-                positive, negative, pixels, vae, mask, add_noise_mask=True
+                positive, negative, pixels, vae, mask, noise_mask=True
             )
         except TypeError:  # ComfyUI versions older than 2024-11-19
             positive, negative, latent = nodes.InpaintModelConditioning().encode(
