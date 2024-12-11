@@ -67,7 +67,9 @@ original_calculate_weight = comfy.lora.calculate_weight
 injected_model_patcher_calculate_weight = False
 
 
-def calculate_weight_patched(patches, weight, key, intermediate_dtype=torch.float32):
+def calculate_weight_patched(
+    patches, weight, key, intermediate_dtype=torch.float32, original_weights=None
+):
     remaining = []
 
     for p in patches:
