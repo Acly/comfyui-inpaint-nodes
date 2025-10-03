@@ -12,6 +12,7 @@ from comfy.utils import ProgressBar
 from comfy.model_patcher import ModelPatcher
 from comfy.model_base import BaseModel
 from comfy.model_management import cast_to_device, get_torch_device
+from comfy import model_management
 import comfy.utils
 import comfy.lora
 import folder_paths
@@ -382,11 +383,6 @@ class InpaintWithModel:
         else:
             raise ValueError(f"Unknown model_arch {type(inpaint_model)}")
 
-        if optional_upscale_model != None:
-            from comfy_extras.nodes_upscale_model import ImageUpscaleWithModel
-
-            upscaler = ImageUpscaleWithModel
-
         image, mask = to_torch(image, mask)
         batch_size = image.shape[0]
         if mask.shape[0] != batch_size:
@@ -408,10 +404,8 @@ class InpaintWithModel:
             torch.manual_seed(seed)
             work_image = inpaint_model(work_image.to(device), work_mask.to(device))
 
-            if optional_upscale_model != None:
-                work_image = work_image.movedim(1, -1)
-                work_image = upscaler.upscale(upscaler, optional_upscale_model, work_image)
-                work_image = work_image[0].movedim(-1, 1)
+            if optional_upscale_model is not None:
+                work_image = self._upscale(optional_upscale_model, work_image, device)
 
             work_image.to(image_device)
             work_image = undo_resize_square(work_image.to(image_device), original_size)
@@ -422,7 +416,29 @@ class InpaintWithModel:
 
         inpaint_model.cpu()
         result = torch.cat(batch_image, dim=0)
-        return (to_comfy(result),)
+        return (to_comfy(result),)    
+    
+    def _upscale(self, upscale_model, image: Tensor, device):
+        memory_required = model_management.module_size(upscale_model.model)
+        memory_required += (512 * 512 * 3) * image.element_size() * max(upscale_model.scale, 1.0) * 384.0
+        memory_required += image.nelement() * image.element_size()
+        model_management.free_memory(memory_required, device)
+        upscale_model.to(device)
+
+        tile = 512
+        overlap = 32
+        oom = True
+        while oom:
+            try:
+                s = comfy.utils.tiled_scale(image, lambda a: upscale_model(a), tile_x=tile, tile_y=tile, overlap=overlap, upscale_amount=upscale_model.scale)
+                oom = False
+            except model_management.OOM_EXCEPTION as e:
+                tile //= 2
+                if tile < 128:
+                    raise e
+
+        upscale_model.to("cpu")
+        return torch.clamp(s, min=0, max=1.0)
 
 
 class DenoiseToCompositingMask:
