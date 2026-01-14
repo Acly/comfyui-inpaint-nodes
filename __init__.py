@@ -30,6 +30,7 @@ NODE_CLASS_MAPPINGS = {
     "INPAINT_LoadInpaintModel": nodes.LoadInpaintModel,
     "INPAINT_InpaintWithModel": nodes.InpaintWithModel,
     "INPAINT_ExpandMask": nodes.ExpandMask,
+    "INPAINT_ShrinkMask": nodes.ShrinkMask,
     "INPAINT_DenoiseToCompositingMask": nodes.DenoiseToCompositingMask,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -41,5 +42,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "INPAINT_LoadInpaintModel": "Load Inpaint Model",
     "INPAINT_InpaintWithModel": "Inpaint (using Model)",
     "INPAINT_ExpandMask": "Expand Mask",
+    "INPAINT_ShrinkMask": "Shrink Mask",
     "INPAINT_DenoiseToCompositingMask": "Denoise to Compositing Mask",
 }

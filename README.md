@@ -41,7 +41,11 @@ input mask is large enough.
 
 ### Expand Mask
 
-Expands (grow) the mask area by a certain number of pixels, and blurs (feather) the mask for a smoother transition at the edges.
+Expands (grow) a binary mask by a certain number of pixels, and optionally blurs (feather) the mask for a smoother transition at the edges.
+
+### Shrink Mask
+
+Shrinks (erodes) a binary mask by a certain number of pixels, and optionally blurs (feather) the mask for a smoother transition at the edges.
 
 ### Fill Masked
 
