@@ -20,6 +20,8 @@ import nodes
 
 from . import mat
 from .util import (
+    BlurKernel,
+    mask_blur,
     gaussian_blur,
     binary_erosion,
     binary_dilation,
@@ -126,6 +128,7 @@ class LoadFooocusInpaint:
 
     def load(self, head: str, patch: str):
         head_file = folder_paths.get_full_path("inpaint", head)
+        assert head_file is not None, f"Inpaint head file not found in inpaint folder: {head}"
         inpaint_head_model = InpaintHead()
         sd = torch.load(head_file, map_location="cpu", weights_only=True)
         inpaint_head_model.load_state_dict(sd)
@@ -486,6 +489,7 @@ class ExpandMask:
                 "mask": ("MASK",),
                 "grow": ("INT", {"default": 16, "min": 0, "max": 8096, "step": 1}),
                 "blur": ("INT", {"default": 7, "min": 0, "max": 8096, "step": 1}),
+                "blur_type": (["box", "linear", "gaussian"], {"default": "gaussian"}),
             }
         }
 
@@ -493,12 +497,12 @@ class ExpandMask:
     CATEGORY = "inpaint"
     FUNCTION = "expand"
 
-    def expand(self, mask: Tensor, grow: int, blur: int):
+    def expand(self, mask: Tensor, grow: int, blur: int, blur_type: str):
         mask = mask_unsqueeze(mask)
         if grow > 0:
             mask = binary_dilation(mask, grow)
         if blur > 0:
-            mask = gaussian_blur(mask, make_odd(blur))
+            mask = mask_blur(mask, make_odd(blur), BlurKernel[blur_type])
         return (mask.squeeze(1),)
 
 
@@ -510,6 +514,7 @@ class ShrinkMask:
                 "mask": ("MASK",),
                 "shrink": ("INT", {"default": 1, "min": 0, "max": 8096, "step": 1}),
                 "blur": ("INT", {"default": 0, "min": 0, "max": 8096, "step": 1}),
+                "blur_type": (["box", "linear", "gaussian"], {"default": "gaussian"}),
             }
         }
 
@@ -517,10 +522,10 @@ class ShrinkMask:
     CATEGORY = "inpaint"
     FUNCTION = "shrink"
 
-    def shrink(self, mask: Tensor, shrink: int, blur: int):
+    def shrink(self, mask: Tensor, shrink: int, blur: int, blur_type: str):
         mask = mask_unsqueeze(mask)
         if shrink > 0:
             mask = binary_erosion(mask, shrink)
         if blur > 0:
-            mask = gaussian_blur(mask, make_odd(blur))
+            mask = mask_blur(mask, make_odd(blur), BlurKernel[blur_type])
         return (mask.squeeze(1),)

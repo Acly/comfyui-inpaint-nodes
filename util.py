@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -20,7 +21,7 @@ def to_torch(image: Tensor, mask: Tensor | None = None):
     image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
     if mask is not None:
         mask = mask_unsqueeze(mask)
-    if image.shape[2:] != mask.shape[2:]:
+    if mask is not None and image.shape[2:] != mask.shape[2:]:
         raise ValueError(
             f"Image and mask must be the same size. {image.shape[2:]} != {mask.shape[2:]}"
         )
@@ -80,11 +81,11 @@ def undo_resize_square(image: Tensor, original_size: tuple[int, int, int]):
     return image[:, :, 0 : prev_size - pad_h, 0 : prev_size - pad_w]
 
 
-def gaussian_blur(image: Tensor, radius: int, sigma: float = 0):
+def gaussian_blur(image: Tensor, size: int, sigma: float = 0):
     c = image.shape[-3]
     if sigma <= 0:
-        sigma = 0.3 * (radius - 1) + 0.8
-    return kornia.filters.gaussian_blur2d(image, (radius, radius), (sigma, sigma))
+        sigma = 0.3 * (size - 1) + 0.8
+    return kornia.filters.gaussian_blur2d(image, (size, size), (sigma, sigma))
 
 
 def binary_erosion(mask: Tensor, radius: int):
@@ -99,6 +100,31 @@ def binary_dilation(mask: Tensor, radius: int):
     kernel = torch.ones(1, radius * 2 + 1, device=mask.device)
     mask = kornia.filters.filter2d_separable(mask, kernel, kernel, border_type="constant")
     mask = (mask > 0).to(mask.dtype)
+    return mask
+
+
+class BlurKernel(Enum):
+    box = "box"
+    linear = "linear"
+    gaussian = "gaussian"
+
+
+def mask_blur(mask: Tensor, size: int, method=BlurKernel.gaussian):
+    if method is BlurKernel.gaussian:
+        return gaussian_blur(mask, size)
+
+    match method:
+        case BlurKernel.box:
+            kernel = torch.ones(1, size, device=mask.device) / size
+        case BlurKernel.linear:
+            kernel = torch.linspace(1 / size, (size - 1) / size, size, device=mask.device)
+            kernel = torch.cat([kernel, torch.ones(1, device=mask.device), kernel.flip(0)])
+            kernel = kernel / kernel.sum()
+            kernel = kernel.unsqueeze(0)
+        case _:
+            raise ValueError(f"Unknown blur kernel: {method}")
+
+    mask = kornia.filters.filter2d_separable(mask, kernel, kernel, border_type="reflect")
     return mask
 
 
