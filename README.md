@@ -47,6 +47,13 @@ Expands (grow) a binary mask by a certain number of pixels, and optionally blurs
 
 Shrinks (erodes) a binary mask by a certain number of pixels, and optionally blurs (feather) the mask for a smoother transition at the edges.
 
+### Stabilize Mask
+
+Maps mask values very close to 1 to be exactly 1.0. This helps avoid numerical
+issues introduced by previous operations. ComfyUI in various steps only
+considers noise masks to be opaque when they are >= 1.0 (eg. via round), and
+values like 0.9999... can lead to masks not working at all.
+
 ### Fill Masked
 
 This fills the masked area, with a smooth transition at the border. It has 3 modes:

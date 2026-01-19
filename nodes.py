@@ -253,6 +253,7 @@ class MaskedFill:
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
         image = image.detach().clone()
         alpha = mask_unsqueeze(mask_floor(mask))
+        alpha = binary_erosion(alpha, 10)
         assert alpha.shape[0] == image.shape[0], "Image and mask batch size does not match"
 
         falloff = make_odd(falloff)
@@ -528,4 +529,24 @@ class ShrinkMask:
             mask = binary_erosion(mask, shrink)
         if blur > 0:
             mask = mask_blur(mask, make_odd(blur), BlurKernel[blur_type])
+        return (mask.squeeze(1),)
+
+
+class StabilizeMask:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+                "epsilon": ("FLOAT", {"default": 0.01, "min": 0.0, "max": 1.0, "step": 0.0001}),
+            }
+        }
+
+    RETURN_TYPES = ("MASK",)
+    CATEGORY = "inpaint"
+    FUNCTION = "stabilize"
+
+    def stabilize(self, mask: Tensor, epsilon: float):
+        mask = mask_unsqueeze(mask)
+        mask = torch.where(mask > 1.0 - epsilon, torch.ones_like(mask), mask)
         return (mask.squeeze(1),)
