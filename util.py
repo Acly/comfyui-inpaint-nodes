@@ -110,14 +110,19 @@ class BlurKernel(Enum):
 
 
 def mask_blur(mask: Tensor, size: int, method=BlurKernel.gaussian):
+    if size <= 2:
+        return mask
     if method is BlurKernel.gaussian:
         return gaussian_blur(mask, size)
 
-    match method:
-        case BlurKernel.box:
+    match method, size:
+        case BlurKernel.box, _:
             kernel = torch.ones(1, size, device=mask.device) / size
-        case BlurKernel.linear:
-            kernel = torch.linspace(1 / size, (size - 1) / size, size, device=mask.device)
+        case BlurKernel.linear, 3:
+            kernel = torch.ones(1, size, device=mask.device) / size
+        case BlurKernel.linear, _:
+            h = size // 2
+            kernel = torch.linspace(1 / h, (h - 1) / h, h, device=mask.device)
             kernel = torch.cat([kernel, torch.ones(1, device=mask.device), kernel.flip(0)])
             kernel = kernel / kernel.sum()
             kernel = kernel.unsqueeze(0)
