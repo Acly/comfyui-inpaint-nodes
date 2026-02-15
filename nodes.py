@@ -27,7 +27,7 @@ from .util import (
     binary_dilation,
     make_odd,
     mask_floor,
-    mask_unsqueeze,
+    mask_to_torch,
     to_torch,
     to_comfy,
     resize_square,
@@ -252,7 +252,7 @@ class MaskedFill:
 
     def fill(self, image: Tensor, mask: Tensor, fill: str, falloff: int):
         image = image.detach().clone()
-        alpha = mask_unsqueeze(mask_floor(mask))
+        alpha = mask_to_torch(mask_floor(mask))
         alpha = binary_erosion(alpha, 10)
         assert alpha.shape[0] == image.shape[0], "Image and mask batch size does not match"
 
@@ -348,7 +348,7 @@ class LoadInpaintModel:
         if "synthesis.first_stage.conv_first.conv.resample_filter" in sd:  # MAT
             model = mat.load(sd)
         else:
-            model = ModelLoader().load_from_state_dict(sd)
+            model = ModelLoader().load_from_state_dict(sd)  # type: ignore
         model = model.eval()
         return (model,)
 
@@ -499,7 +499,7 @@ class ExpandMask:
     FUNCTION = "expand"
 
     def expand(self, mask: Tensor, grow: int, blur: int, blur_type: str):
-        mask = mask_unsqueeze(mask)
+        mask = mask_to_torch(mask)
         if grow > 0:
             mask = binary_dilation(mask, grow)
         if blur > 0:
@@ -524,7 +524,7 @@ class ShrinkMask:
     FUNCTION = "shrink"
 
     def shrink(self, mask: Tensor, shrink: int, blur: int, blur_type: str):
-        mask = mask_unsqueeze(mask)
+        mask = mask_to_torch(mask)
         if shrink > 0:
             mask = binary_erosion(mask, shrink)
         if blur > 0:
@@ -547,6 +547,6 @@ class StabilizeMask:
     FUNCTION = "stabilize"
 
     def stabilize(self, mask: Tensor, epsilon: float):
-        mask = mask_unsqueeze(mask)
+        mask = mask_to_torch(mask)
         mask = torch.where(mask > 1.0 - epsilon, torch.ones_like(mask), mask)
         return (mask.squeeze(1),)

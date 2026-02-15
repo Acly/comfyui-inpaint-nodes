@@ -7,7 +7,7 @@ import kornia.filters
 from torch import Tensor
 
 
-def mask_unsqueeze(mask: Tensor):
+def mask_to_torch(mask: Tensor):
     if len(mask.shape) == 3:  # BHW -> B1HW
         mask = mask.unsqueeze(1)
     elif len(mask.shape) == 2:  # HW -> B1HW
@@ -15,13 +15,20 @@ def mask_unsqueeze(mask: Tensor):
     return mask
 
 
-def to_torch(image: Tensor, mask: Tensor | None = None):
+def image_to_torch(image: Tensor):
     if len(image.shape) == 3:
         image = image.unsqueeze(0)
     image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
-    if mask is not None:
-        mask = mask_unsqueeze(mask)
-    if mask is not None and image.shape[2:] != mask.shape[2:]:
+    return image
+
+
+def to_torch(image: Tensor, mask: Tensor):
+    if len(image.shape) == 3:
+        image = image.unsqueeze(0)
+    image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
+
+    mask = mask_to_torch(mask)
+    if image.shape[2:] != mask.shape[2:]:
         raise ValueError(
             f"Image and mask must be the same size. {image.shape[2:]} != {mask.shape[2:]}"
         )
