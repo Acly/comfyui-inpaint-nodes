@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any
+import kornia
 import numpy as np
 import torch
 import torch.jit
@@ -22,6 +23,7 @@ import nodes
 from . import mat
 from .util import (
     BlurKernel,
+    image_to_torch,
     mask_blur,
     gaussian_blur,
     binary_erosion,
@@ -141,7 +143,7 @@ class LoadFooocusInpaint(io.ComfyNode):
         patch_file = folder_paths.get_full_path("inpaint", patch)
         inpaint_lora = comfy.utils.load_torch_file(patch_file, safe_load=True)
 
-        return io.NodeOutput(inpaint_head_model, inpaint_lora)
+        return io.NodeOutput((inpaint_head_model, inpaint_lora))
 
 
 class InpaintBlockPatch:
@@ -474,6 +476,77 @@ class InpaintWithModel(io.ComfyNode):
         upscale_model.to("cpu")
         assert s is not None
         return torch.clamp(s, min=0, max=1.0)
+
+
+class ColorMatch(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="INPAINT_ColorMatch",
+            display_name="Color Match (Masked)",
+            category="inpaint",
+            inputs=[
+                io.Image.Input("target"),
+                io.Image.Input("reference"),
+                io.Mask.Input("exclude_mask", optional=True),
+                io.Float.Input("strength", default=1.0, min=0.0, max=1.0, step=0.01),
+            ],
+            outputs=[io.Image.Output("image")],
+        )
+
+    @classmethod
+    def execute(  # type: ignore
+        cls, target: Tensor, reference: Tensor, exclude_mask: Tensor | None, strength: float
+    ):
+        # from https://github.com/kijai/ComfyUI-KJNodes (GPLv3), modified with mask support
+        if strength <= 0.0:
+            return io.NodeOutput(target)
+
+        device = model_management.get_torch_device()
+
+        src_bchw = image_to_torch(target.to(device))
+        ref_bchw = image_to_torch(reference.to(device))
+        Bs, Cs, Hs, Ws = src_bchw.shape
+        Br, Cr, Hr, Wr = ref_bchw.shape
+
+        src_lab = kornia.color.rgb_to_lab(src_bchw)
+        ref_lab = kornia.color.rgb_to_lab(ref_bchw)
+
+        src_lab_flat = src_lab_masked = src_lab.view(Bs, Cs, Hs * Ws)
+        ref_lab_flat = ref_lab_masked = ref_lab.view(Br, Cr, Hr * Wr)
+
+        if exclude_mask is not None:
+            mask = mask_to_torch(exclude_mask).to(device)
+            Bm, _, Hm, Wm = mask.shape
+            src_mask, ref_mask = mask, mask
+            if Hm != Hs or Wm != Ws:
+                src_mask = F.interpolate(mask, size=(Hs, Ws), mode="bilinear")
+            src_mask_flat = src_mask.view(Bm, 1, Hs * Ws) < 0.5
+            if Hr == Hs and Wr == Ws:
+                ref_mask_flat = src_mask_flat
+            else:
+                if Hm != Hr or Wm != Wr:
+                    ref_mask = F.interpolate(mask, size=(Hr, Wr), mode="bilinear")
+                ref_mask_flat = ref_mask.view(Bm, 1, Hr * Wr) < 0.5
+            src_lab_masked = src_lab_flat * src_mask_flat
+            ref_lab_masked = ref_lab_flat * ref_mask_flat
+
+        src_std, src_mean = torch.std_mean(src_lab_masked, dim=-1, keepdim=True, unbiased=False)
+        ref_std, ref_mean = torch.std_mean(ref_lab_masked, dim=-1, keepdim=True, unbiased=False)
+        src_std = src_std.clamp_min_(1e-6)
+
+        if Br == 1 and Bs > 1:
+            ref_mean = ref_mean.expand(Bs, -1, -1)
+            ref_std = ref_std.expand(Bs, -1, -1)
+
+        corrected_lab_flat = (src_lab_flat - src_mean) * (ref_std / src_std) + ref_mean
+        corrected_lab = corrected_lab_flat.view(Bs, Cs, Hs, Ws)
+
+        out = kornia.color.lab_to_rgb(corrected_lab)
+        if strength < 1.0:
+            out = (1.0 - strength) * src_bchw + strength * out
+
+        return io.NodeOutput(to_comfy(out).cpu().float().clamp_(0, 1))
 
 
 class DenoiseToCompositingMask(io.ComfyNode):

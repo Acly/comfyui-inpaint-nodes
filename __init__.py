@@ -33,6 +33,7 @@ class InpaintNodes(ComfyExtension):
             nodes.MaskedBlur,
             nodes.LoadInpaintModel,
             nodes.InpaintWithModel,
+            nodes.ColorMatch,
             nodes.ExpandMask,
             nodes.ShrinkMask,
             nodes.StabilizeMask,
