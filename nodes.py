@@ -173,7 +173,7 @@ class ApplyFooocusInpaint(io.ComfyNode):
                 InpaintPatch.Input("patch", "inpaint patch"),
                 io.Latent.Input("latent"),
             ],
-            outputs=[io.Model.Output("model")],
+            outputs=[io.Model.Output(display_name="model")],
         )
 
     @classmethod
