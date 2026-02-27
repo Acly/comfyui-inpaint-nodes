@@ -270,7 +270,6 @@ class MaskedFill(io.ComfyNode):
     def execute(cls, image: Tensor, mask: Tensor, fill: str, falloff: int):  # type: ignore
         image = image.detach().clone()
         alpha = mask_to_torch(mask_floor(mask))
-        alpha = binary_erosion(alpha, 10)
         assert alpha.shape[0] == image.shape[0], "Image and mask batch size does not match"
 
         falloff = make_odd(falloff)
