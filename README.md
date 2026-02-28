@@ -90,6 +90,18 @@ The following inpaint models are supported, place them in `ComfyUI/models/inpain
 
 ## Inpaint Post-processing
 
+### Color Match (Masked)
+
+Can mitigate color/brightness shifts when inpainting. Requires the original
+input image as `reference`, and the denoising output as `target`. This node is
+useful only if the color shift occurs in the entire output, even the parts that
+were excluded with a _noise mask_. In this case you can provide the same mask to
+the Color match node as `exclude mask`. Colors will be anaylised based on the
+changes _outside_ the masked area. Then the correction is applied to the entire
+target image.
+
+Particularly useful for refinements or edits done with Flux 2 Klein.
+
 ### Denoise to Compositing Mask
 
 Takes a _mask_, an _offset_ (default 0.1) and a _threshold_ (default 0.2).
