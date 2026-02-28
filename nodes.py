@@ -226,8 +226,8 @@ class VAEEncodeInpaintConditioning(io.ComfyNode):
                 io.Mask.Input("mask"),
             ],
             outputs=[
-                io.Conditioning.Output("positive"),
-                io.Conditioning.Output("negative"),
+                io.Conditioning.Output(display_name="positive"),
+                io.Conditioning.Output(display_name="negative"),
                 io.Latent.Output("latent_inpaint", "latent inpaint"),
                 io.Latent.Output("latent_samples", "latent samples"),
             ],
@@ -263,7 +263,7 @@ class MaskedFill(io.ComfyNode):
                 io.Combo.Input("fill", ["neutral", "telea", "navier-stokes"]),
                 io.Int.Input("falloff", default=0, min=0, max=8191, step=1),
             ],
-            outputs=[io.Image.Output("image")],
+            outputs=[io.Image.Output(display_name="image")],
         )
 
     @classmethod
@@ -317,7 +317,7 @@ class MaskedBlur(io.ComfyNode):
                 io.Int.Input("blur", default=255, min=3, max=8191, step=1),
                 io.Int.Input("falloff", default=0, min=0, max=8191, step=1),
             ],
-            outputs=[io.Image.Output("image")],
+            outputs=[io.Image.Output(display_name="image")],
         )
 
     @classmethod
@@ -560,7 +560,7 @@ class DenoiseToCompositingMask(io.ComfyNode):
                 io.Float.Input("offset", default=0.1, min=0.0, max=1.0, step=0.01),
                 io.Float.Input("threshold", default=0.2, min=0.01, max=1.0, step=0.01),
             ],
-            outputs=[io.Mask.Output("mask")],
+            outputs=[io.Mask.Output(display_name="mask")],
         )
 
     @classmethod
@@ -584,7 +584,7 @@ class ExpandMask(io.ComfyNode):
                 io.Int.Input("blur", default=7, min=0, max=8096, step=1),
                 io.Combo.Input("blur_type", BlurKernel, default=BlurKernel.gaussian),
             ],
-            outputs=[io.Mask.Output("mask")],
+            outputs=[io.Mask.Output(display_name="mask")],
         )
 
     @classmethod
@@ -611,7 +611,7 @@ class ShrinkMask(io.ComfyNode):
                 io.Int.Input("blur", default=7, min=0, max=8096, step=1),
                 io.Combo.Input("blur_type", BlurKernel, default=BlurKernel.gaussian),
             ],
-            outputs=[io.Mask.Output("mask")],
+            outputs=[io.Mask.Output(display_name="mask")],
         )
 
     @classmethod
@@ -636,7 +636,7 @@ class StabilizeMask(io.ComfyNode):
                 io.Mask.Input("mask"),
                 io.Float.Input("epsilon", default=0.01, min=0.0, max=1.0, step=0.0001),
             ],
-            outputs=[io.Mask.Output("mask")],
+            outputs=[io.Mask.Output(display_name="mask")],
         )
 
     @classmethod
