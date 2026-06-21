@@ -364,6 +364,10 @@ class LoadInpaintModel(io.ComfyNode):
             raise RuntimeError(f"Model file not found: {model_name}")
         if model_file.endswith(".pt"):
             sd = torch.jit.load(model_file, map_location="cpu").state_dict()
+            # Some TorchScript models wrap weights under an extra "model." prefix
+            # which spandrel doesn't recognise. Strip it so spandrel can load the model.
+            if any(k.startswith("model.generator.") for k in sd):
+                sd = {k[len("model."):]: v for k, v in sd.items()}
         else:
             sd = comfy.utils.load_torch_file(model_file, safe_load=True)
 
