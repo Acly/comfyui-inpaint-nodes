@@ -508,6 +508,13 @@ class ColorMatch(io.ComfyNode):
 
         src_bchw = image_to_torch(target.to(device))
         ref_bchw = image_to_torch(reference.to(device))
+
+        src_alpha = src_bchw[:, 3:] if src_bchw.shape[1] == 4 else None
+        if src_alpha is not None:
+            src_bchw = src_bchw[:, :3]
+        if ref_bchw.shape[1] == 4:
+            ref_bchw = ref_bchw[:, :3]
+
         Bs, Cs, Hs, Ws = src_bchw.shape
         Br, Cr, Hr, Wr = ref_bchw.shape
 
@@ -550,6 +557,8 @@ class ColorMatch(io.ComfyNode):
         out = kornia.color.lab_to_rgb(corrected_lab)
         if strength < 1.0:
             out = (1.0 - strength) * src_bchw + strength * out
+        if src_alpha is not None:
+            out = torch.cat((out, src_alpha), dim=1)
 
         return io.NodeOutput(to_comfy(out).cpu().float().clamp_(0, 1))
 
